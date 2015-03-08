@@ -1,0 +1,779 @@
+/**************************HEADERS********************************************/
+#include <time.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <errno.h>
+ 
+/****************************CONSTANTS***************************************/
+#define BUFF_SIZE 100
+#define MAX_COUNT 106142
+//lines in the file
+#define FILENAME "output.txt"
+#define key(A)(A)
+#define TRUE         0    
+#define FALSE        1   
+#define TEN_PROCESS  10
+#define FOUR_PROCESS 4
+#define TWO_PROCESS  2
+#define ONE_PROCESS  1
+#define less(A,B) (key(A) < key(B))
+#define HALF_COUNT (MAX_COUNT/2)
+//***********************************STRUCTS--DECLARATIONS******************/
+typedef struct Cars
+{
+    char make[10];
+    int  year;
+}Cars;
+
+struct Cars * car_list;
+struct Cars * car_listCopy;
+struct Cars * sorted_carlist;
+int    tasksPerProcess;
+int    x = 0; //incrementer for tokenizer
+
+
+/**************************************FUNCTIONS*************************/
+
+
+/**
+ * Description:    Helper method for bubble sort that swaps the parts of the Cars Struct
+ * input-- 
+ * int i:          first index item being swapped
+ * int j:          second index item being swapped
+ * int type:       what is being swapped. 0=Second Swap comparing make
+ * 	           1= swap the cars make.	
+ * return: 	   void
+ */
+void swapStruct(int i, int j, int type){
+    struct Cars temp;
+    char tmp[20];
+    
+    if (type == 0){
+        strcpy(tmp, car_list[i].make);
+        strcpy(car_list[i].make, car_list[j].make);
+        strcpy(car_list[j].make, tmp);
+    }
+    else{
+        temp = car_list[i];
+        car_list[i] = car_list[j];
+        car_list[j] = temp;
+    }
+}
+
+
+/**
+ * Description:    Bubbles sorts cars first by year than by make
+ * input--
+ * int start:	   The starting index of where the process should start sorting
+ * int end:	   The last index of where the process should end sorting
+ * int type: 	   Not used..
+ * 
+ * return:         void 
+ */
+void  bubbleSort( int start, int end, int type){
+    int i;
+    int unsorted;
+    
+    do{
+        unsorted = TRUE;                                  
+        
+        for (i=start; less(i,end-1); i++){
+            if (less(car_list[i+1].year, car_list[i].year)){
+                swapStruct(i, (i+1), 1);
+                unsorted = FALSE;                        
+            }
+            else if ((car_list[i+1].year-car_list[i].year)== 0){
+                if (strcmp(car_list[i].make, car_list[i+1].make) > 0){
+                    swapStruct(i, (i+1), 0);
+                    unsorted = FALSE;                     
+                }
+            }
+        }
+    }
+    while ( unsorted );
+}
+
+/**
+ * Description:     Pulls Year and make from the file by line. Make is 2 tabs, year is 4 tabs
+ *                  it then stores 2 copies 1 to car_list another to car_listCopy
+ * input--
+ * char *lines:     The current line of the file being read
+ * int i:	     current line number
+ * int type:	     Type of read. some lines are 2 and 4 tabs other is 3 and 1.
+ * 
+ * return:          void
+ */
+void get_tokenization(char *lines, int i, int type){
+    int   flag=0;//keeps track of where we are in the readline.
+    char *token;
+    
+    if (type == 1){        
+        token=strtok(lines,"\t");//delimter
+        while (token != NULL) {
+            if(flag==2) strcpy(car_list[i].make,token);
+            if(flag==4) car_list[i].year=atoi(token);//convert to int
+            token = strtok(NULL,"\t");
+            flag++;
+        }
+    }
+    else{
+        token=strtok(lines," ");
+        while (token != NULL) {
+            if(flag==3) strcpy(car_listCopy[i].make,token);
+            if(flag==1) car_listCopy[i].year=atoi(token);
+            token = strtok(NULL," ");
+            flag++;
+        }
+    }
+}
+
+/**
+ * Description:      Opens the file being read FLAT_RCL.txt reads line by line and passes this line 
+ *                   to get_tokenization to be parsed and stored. Reads from file FLAT_RCL.txt 
+ *                   writes to file output.txt
+ * intput--
+ * int type:         type of file read: 1= setup file read 0= child process read writes to file
+ * 
+ * return:           void
+ */
+void dataManagement( int type ){
+    FILE  *inptr;
+    size_t read, length = 0;
+    int i = 0;
+    char  *lines = NULL;
+    char  charOne[] = "go1";
+    char  charTwo[] = "go2";
+
+    printf("Doing Data Management\n");
+    if (type == 1){
+        inptr = fopen("FLAT_RCL.txt", "r");
+
+        if ( inptr == NULL ) {
+            perror("Error "); printf("Press any key to exit...\n");
+            exit(1);
+        }
+        while ((read = getline (&lines, &length, inptr)) != -1){
+           get_tokenization(lines, x++, type);
+        }
+    }
+    else{
+        inptr = fopen(FILENAME, "r");
+        if ( inptr == NULL ) {
+            perror("Error "); printf("Press any key to exit...\n");
+            exit(1);
+        }
+    }
+}
+
+/**
+ * Description:     Helper method to call bubble sort. First by make then by year
+ * input--
+ * int i:           Starting index of sort
+ * int j:           Ending index of sort 
+ * 
+ * return:	     void
+ */
+void call_Sorting(int i, int j) {
+    bubbleSort(i, j, 1);    // Sorts cars by make
+    bubbleSort(i, j, 0);    // Sorts cars by year
+}
+
+/**
+ * Description:              Gets the time that a process took
+ * input--
+ * char *c_time_string:      Fortmatted time string using ctime()
+ * time_t current_time:	      Time stamp form process start 		      
+ * 
+ * return:                   int EXIT_FAILURE, EXIT_SUCCESS
+ */
+int programTime( char *c_time_string, time_t current_time ){
+    
+    if ((current_time == ((time_t)-1)) || (c_time_string == NULL)) {
+        (void) fprintf(stderr, "\nCan't Compute time programTime() method");
+        return EXIT_FAILURE;
+        
+    }else{
+        printf("\nCurrent time is:  %s\n", c_time_string); 
+        return EXIT_SUCCESS;
+    }
+}
+
+/**
+ * Description:               Merges arrays together. Used after each process is done bubblesorting
+ * input--
+ * struct Cars *sorted:       The final Sorted array of parts A and B
+ * struct Cars *a:            The first array under merge
+ * struct Cars *b:	       The second array under merge
+ * int m:		       Size of Array A
+ * int n:		       Size of Array B
+ * 
+ * return:   		       void
+ */
+void arrayMerger(struct Cars *sorted,struct Cars *a,struct Cars *b, int m,int n ){
+    int i, j, k; j = k = 0;
+    int mergeSize = (m + n);
+     
+    for (i = 0; i < mergeSize; ){
+        if (j < m && k < n) {
+            if (a[j].year < b[k].year) {
+                sorted[i] = a[j];
+                j++;
+            }else {
+                sorted[i] = b[k];
+                k++;
+            }i++;
+            
+        }else if (j == m) {
+            for (; i < mergeSize;) {
+                sorted[i] = b[k];
+                k++; i++;
+            }
+            
+        }else {
+            for (; i < mergeSize;) {
+                sorted[i] = a[j];
+                j++; i++;
+            }
+        }
+    }
+}
+
+/**
+ * Description:           Splits data into two processes and merges the sorted list
+ * input--
+ * none
+ * return:                void 
+ */
+
+void read2Processes(void){
+    
+    int k, count, size1, size2; 
+    size1 = size2 = count = 0;
+    struct Cars *portion1  = malloc(sizeof(Cars) * (MAX_COUNT/2));
+    struct Cars *portion2  = malloc(sizeof(Cars) * (MAX_COUNT/2));
+    
+    dataManagement(0);    
+    
+    while (count < MAX_COUNT) { // Reads data from file & convers this from str. to (int)
+                                // Stores the 1st data partition collected from the file
+
+        if (count < HALF_COUNT){
+            portion1[size1].year = car_listCopy[count].year;
+            strcpy(portion1[size1].make, car_listCopy[count].make); size1++;
+            
+        }else{                  // Stores the 2nd data partition collected from the file
+            portion2[size2].year = car_listCopy[count].year;
+            strcpy(portion2[size2].make, car_listCopy[count].make); size2++;
+        }count++;
+    }
+
+    // Merging the processes at a range of n/2
+    //----------------------------------------
+    arrayMerger(sorted_carlist, portion1, portion2, size1, size2);
+
+    // Free memory
+    //--------------------------------------------------------
+    free( sorted_carlist ); free( portion1 ); free( portion2 );
+    //--------------------------------------------------------
+}
+
+/**
+ * Description:           Splits data into four processes and merges the sorted list
+ * input--
+ * none
+ * return:                void 
+ */
+
+void read4Processes(){
+    int  merge1stSize, merge2ndSize, sizeMerge;
+    int  size1, size2, size3, size4, k, count;
+    
+    struct Cars *portion1  = malloc(sizeof(Cars) * (MAX_COUNT/FOUR_PROCESS));
+    struct Cars *portion2  = malloc(sizeof(Cars) * (MAX_COUNT/FOUR_PROCESS));
+    struct Cars *portion3  = malloc(sizeof(Cars) * (MAX_COUNT/FOUR_PROCESS));
+    struct Cars *portion4  = malloc(sizeof(Cars) * (MAX_COUNT/FOUR_PROCESS));
+    struct Cars *merge1st, *merge2nd;
+    
+    size1 = size2 = size3 = size4 = count = 0;
+    
+    dataManagement(0);
+    
+    while (count < MAX_COUNT) {//create partitions with seperate data        
+        if (count < HALF_COUNT/FOUR_PROCESS){
+            portion1[size1].year = car_listCopy[count].year;
+            strcpy(portion1[size1].make, car_listCopy[count].make); size1++;            
+        }else if (count >= (MAX_COUNT/FOUR_PROCESS) && count < (MAX_COUNT/2)){
+            portion2[size2].year = car_listCopy[count].year;
+            strcpy(portion2[size2].make, car_listCopy[count].make); size2++;
+        }else if (count >= (MAX_COUNT/2) && count < (3*(MAX_COUNT/FOUR_PROCESS))){
+            portion3[size3].year = car_listCopy[count].year;
+            strcpy(portion3[size3].make, car_listCopy[count].make); size3++;
+            
+        }else if (count >= (3*(MAX_COUNT/FOUR_PROCESS)) && count < MAX_COUNT){
+            portion4[size4].year = car_listCopy[count].year;
+            strcpy(portion4[size4].make, car_listCopy[count].make); size4++;            
+        }
+        count++;
+    }
+
+    //calculate the sizes for each array
+    merge1stSize = (size1 + size2);
+    merge2ndSize = (size3 + size4);
+    sizeMerge = merge1stSize + merge2ndSize;
+    //calculate the sizes for each array
+    merge1st   = malloc( (merge1stSize)*sizeof(struct Cars) );
+    merge2nd   = malloc( (merge2ndSize)*sizeof(struct Cars) );
+    //Merge four to two
+    arrayMerger( merge1st,  portion1, portion2, size1, size2);
+    arrayMerger( merge2nd,  portion3, portion4, size3, size4);
+    //merge 2 to 1
+    arrayMerger( sorted_carlist, merge1st, merge2nd, merge1stSize, merge2ndSize);    
+ 
+    free( merge1st ); free( merge2nd ); free( sorted_carlist );
+    
+}
+
+/**
+ * Description:           Splits data into 10 processes and merges the sorted list
+ * input--
+ * none
+ * return:                void 
+ */
+void read10Processes(){
+    int size0,    size1,     size2,   size3,   size4, sizeA;
+    int size5,    size6,     size7,   size8,   size9, sizeB;
+    int size1st,  size2nd,   size3rd, sizeC,   k, count=0;
+    int size4th,  size5th,   sizeFinal;
+    
+    struct Cars *merge1st,   *merge2nd, *merge3rd, *merge4th, *merge5th;
+    struct Cars *mergeA,     *mergeB,   *mergeC;
+    printf("allocating memory for Cars\n");
+    struct Cars *portion0  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion1  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion2  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion3  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion4  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion5  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion6  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion7  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion8  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+    struct Cars *portion9  = malloc(sizeof(Cars) * (MAX_COUNT/TEN_PROCESS));
+   
+    //------------------------------------------------
+    size0 = size1 = size2 = size3 = size4 = sizeA = 0;
+    size5 = size6 = size7 = size8 = size9 = sizeB = 0;
+    //------------------------------------------------
+    dataManagement(0);
+    printf("Reading 10 processes\n");
+    while (count < MAX_COUNT) { //create partitions with seperate data
+        
+        if (count < HALF_COUNT/TEN_PROCESS){
+            portion0[size0].year = car_listCopy[count].year;
+            strcpy(portion0[size0].make, car_listCopy[count].make); size0++;
+            
+        }else if (count >= (1*(MAX_COUNT/TEN_PROCESS)) && count < (2*(MAX_COUNT/TEN_PROCESS))){
+            portion1[size1].year = car_listCopy[count].year;
+            strcpy(portion1[size1].make, car_listCopy[count].make); size1++;
+            
+        }else if ((count >= (2*(MAX_COUNT/TEN_PROCESS)))  && (count < (3*(MAX_COUNT/TEN_PROCESS)))){
+            portion2[size2].year = car_listCopy[count].year;
+            strcpy(portion2[size2].make, car_listCopy[count].make); size2++;
+            
+        }else if ((count >= (3*(MAX_COUNT/TEN_PROCESS)))  && (count < (4*(MAX_COUNT/TEN_PROCESS))) ){
+            portion3[size3].year = car_listCopy[count].year;
+            strcpy(portion3[size3].make, car_listCopy[count].make); size3++;
+            
+        }else if ((count >= (4*(MAX_COUNT/TEN_PROCESS)))  && (count < (5*(MAX_COUNT/TEN_PROCESS))) ){
+            portion4[size4].year = car_listCopy[count].year;
+            strcpy(portion4[size4].make, car_listCopy[count].make); size4++;
+            
+        }else if ((count >= (5*(MAX_COUNT/TEN_PROCESS)))  && (count < (6*(MAX_COUNT/TEN_PROCESS))) ){
+            portion5[size5].year = car_listCopy[count].year;
+            strcpy(portion5[size5].make, car_listCopy[count].make); size5++;
+            
+        }else if ((count >= (6*(MAX_COUNT/TEN_PROCESS)))  && (count < (7*(MAX_COUNT/TEN_PROCESS))) ){
+            portion6[size6].year = car_listCopy[count].year;
+            strcpy(portion6[size6].make, car_listCopy[count].make); size6++;
+            
+        }else if ((count >= (7*(MAX_COUNT/TEN_PROCESS)))  && (count < (8*(MAX_COUNT/TEN_PROCESS))) ){
+            portion7[size7].year = car_listCopy[count].year;
+            strcpy(portion7[size7].make, car_listCopy[count].make); size7++;
+            
+        }else if ((count >= (8*(MAX_COUNT/10)))  && (count < (9*(MAX_COUNT/10))) ){
+            portion8[size8].year = car_listCopy[count].year;
+            strcpy(portion8[size8].make, car_listCopy[count].make); size8++;
+            
+        }else if ((count >= (9*(MAX_COUNT/10)))  && (count < MAX_COUNT)){
+            portion9[size9].year = car_listCopy[count].year;
+            strcpy(portion9[size9].make, car_listCopy[count].make); size9++;
+        }
+        count++;
+    }  
+   printf("Calculating array Size\n");
+   //calculate the sizes for each array
+   size1st = (size0 + size1);    size2nd = (size2 + size3);
+   size3rd = (size4 + size5);    size4th = (size6 + size7);
+   size5th = (size8 + size9);
+   //calculate the sizes for each array
+   sizeA = (size1st + size2nd);  sizeB = (size3rd + size4th);
+   sizeC = (sizeA + sizeB);      sizeFinal = (sizeC + size5th);
+   //setup merging arrays
+    merge1st   = malloc((size1st)    * sizeof(struct Cars));
+    merge2nd   = malloc((size2nd)    * sizeof(struct Cars));
+    merge3rd   = malloc((size3rd)    * sizeof(struct Cars));
+    merge4th   = malloc((size4th)    * sizeof(struct Cars));
+    merge5th   = malloc((size5th)    * sizeof(struct Cars));
+    mergeA     = malloc((sizeA)      * sizeof(struct Cars));
+    mergeB     = malloc((sizeB)      * sizeof(struct Cars));
+    mergeC     = malloc((sizeA+sizeB)* sizeof(struct Cars));
+    printf("Merging Array\n");
+    //Start merging 10 to 5
+   arrayMerger(merge1st,   portion0,  portion1,  size0,   size1);
+   arrayMerger(merge2nd,   portion2,  portion3,  size2,   size3);
+   arrayMerger(merge3rd,   portion4,  portion5,  size4,   size5);
+   arrayMerger(merge4th,   portion6,  portion7,  size6,   size7);
+   arrayMerger(merge5th,   portion8,  portion9,  size8,   size9);
+   //Merge from 5 to 3
+   arrayMerger(mergeA,     merge1st,  merge2nd,  size1st, size2nd);
+   arrayMerger(mergeB,     merge3rd,  merge4th,  size3rd, size4th);
+   //Merge 3 to 2
+   arrayMerger(mergeC,     mergeA,    mergeB,    sizeA,   sizeB);
+   //merge 2 to complete sorted list.
+   arrayMerger(sorted_carlist, mergeC,    merge5th,  sizeC,   size5th);
+    
+   // Free memory
+   free( merge1st ); free( merge2nd ); free( merge3rd );
+   free( merge4th ); free( merge5th ); free( sorted_carlist );
+   free( mergeA );   free( mergeB );   free( mergeC );
+}
+
+/**
+ * Description:           No processes created. Just sort
+ * input--
+ * none
+ * return:                void 
+ */
+void oneProcesses()
+{
+    int    i = 0;
+    FILE   *dataFile = fopen( FILENAME, "a+");
+    tasksPerProcess = (MAX_COUNT + (2-1))/2;
+    
+    call_Sorting(0, MAX_COUNT);
+    for (i=0; i<MAX_COUNT; i++) {
+          fprintf(dataFile, "Year: %d Make: %s\n",car_list[i].year,car_list[i].make);
+    }
+    fclose(dataFile);
+    
+}
+
+/**
+ * Description:           2 processes read from car_list and writes it to a file output.txt
+ * input--
+ * none
+ * return:                void 
+ */
+void twoProcesses (void){
+    int    i = 0;
+    FILE   *dataFile = fopen( FILENAME, "a+");
+    pid_t  child1, child2;
+    tasksPerProcess = (MAX_COUNT + (2-1))/2;
+
+    
+    
+    if ( dataFile == NULL ) {//If file isn't there or already open
+        fprintf(dataFile, "......Problem with file--> output.txt file\n\n");
+        exit(1);
+    }    
+    if ( (child1 = fork()) != 0 ) {//create child 1
+        // Parent Process
+        
+        if ( (child2 = fork()) != 0 ){//create child 2
+            // Parent Process            
+        }else {            
+            call_Sorting(tasksPerProcess, (MAX_COUNT) );
+            for (i=tasksPerProcess; i<MAX_COUNT; i++) {//Task for Child2
+                fprintf(dataFile, "Year: %d Make: %s\n",
+                        car_list[i].year,
+                        car_list[i].make);
+            }exit(0);
+        }        
+    }else {        
+        call_Sorting( 0, tasksPerProcess );
+        for (i=0; i<tasksPerProcess; i++) {//task for Child1
+            fprintf(dataFile, "Year: %d Make: %s\n",
+                    car_list[i].year,
+                    car_list[i].make);
+        }exit(0);
+    }
+    wait(&child1);
+    wait(&child2);
+    fclose(dataFile);
+    read2Processes();   
+}
+
+/**
+ * Description:           4 processes read from car_list and writes it to a file output.txt
+ * input--
+ * none
+ * return:                void 
+ */
+void fourProcesses(void){
+    FILE   *dataFile = fopen( FILENAME, "a+");
+    pid_t  child1, child2, child3, child4;
+    int    i = 0;
+    tasksPerProcess = (MAX_COUNT + (FOUR_PROCESS-1))/FOUR_PROCESS;   
+     
+     if ((child1 = fork()) == 0) {//create child1
+         call_Sorting( 0, tasksPerProcess );
+         for (i=0; i<tasksPerProcess; i++) {
+             fprintf(dataFile, "Year: %d Make: %s\n",
+                     car_list[i].year,
+                     car_list[i].make);
+         } exit(0);
+         
+     }else {
+         if ((child2 = fork()) == 0){//create child2
+             call_Sorting( tasksPerProcess, 2*tasksPerProcess );
+             for (i=tasksPerProcess; i<2*tasksPerProcess; i++) {
+                 fprintf(dataFile, "Year: %d Make: %s\n",
+                         car_list[i].year,
+                         car_list[i].make);
+             } exit(0);
+             
+         }else {
+             if ((child3 = fork()) == 0) {//create child3
+                 call_Sorting( 2*tasksPerProcess, 3*tasksPerProcess );
+                 for (i=2*tasksPerProcess; i<3*(MAX_COUNT/FOUR_PROCESS); i++) {
+                     fprintf(dataFile, "Year: %d Make: %s\n",
+                             car_list[i].year,
+                             car_list[i].make);
+                 }exit(0);
+                 
+             }else {
+                 if ((child4 = fork()) == 0) {//create child4
+                     call_Sorting( 3*tasksPerProcess, MAX_COUNT );
+                     for (i=3*tasksPerProcess; i<MAX_COUNT; i++) {
+                         fprintf(dataFile, "Year: %d Make: %s\n",
+                                 car_list[i].year,
+                                 car_list[i].make);
+                     }exit(0);
+                     
+                 }else {//I'm the Parent
+                     wait(&child1);
+                        wait(&child2);
+                            wait(&child3);
+                                wait(&child4);
+                        fclose(dataFile);
+                    read4Processes(); 
+                 }
+             }
+         }
+     }
+     printf("\n\n");
+}
+
+/**
+ * Description:           10 processes read from car_list and writes it to a file output.txt
+ * input--
+ * none
+ * return:                void 
+ */
+void tenProcesses(void){
+    FILE   *dataFile = fopen( FILENAME, "a+");
+    pid_t  child1, child2, child3, child4, child5;
+    pid_t  child6, child7, child8, child9, child10;
+    int    i = 0;
+    tasksPerProcess = (MAX_COUNT + (TEN_PROCESS-1))/TEN_PROCESS;
+    
+    if ( (child1 = fork()) == 0 ) {//Child1
+        call_Sorting( 0, tasksPerProcess );
+        for (i=0; i<tasksPerProcess; i++) {
+            fprintf(dataFile, "Year: %d Make: %s\n",
+                    car_list[i].year,
+                    car_list[i].make);
+        }exit(0);
+        
+    }else {
+        if ( (child2 = fork()) == 0 ) {//Child2
+            call_Sorting( tasksPerProcess, 2*tasksPerProcess );
+            for (i=tasksPerProcess; i<2*tasksPerProcess; i++) {
+                fprintf(dataFile, "Year: %d Make: %s\n",
+                        car_list[i].year, car_list[i].make);
+            }exit(0);
+            
+        }else {
+            if ( (child3 = fork()) == 0 ) {//Child3
+                call_Sorting(2*tasksPerProcess, 3*tasksPerProcess );
+                for (i=2*tasksPerProcess; i<(3*tasksPerProcess); i++) {
+                    fprintf(dataFile, "Year: %d Make: %s\n",
+                            car_list[i].year,
+                            car_list[i].make);
+                }exit(0);
+            }else {
+                if ( (child4 = fork()) == 0 ) {//Child4
+                    call_Sorting( (3*tasksPerProcess), 4*tasksPerProcess );
+                    for (i=(3*tasksPerProcess); i<(4*tasksPerProcess); i++) {
+                        fprintf(dataFile, "Year: %d Make: %s\n",
+                                car_list[i].year, car_list[i].make);
+                    }exit(0);
+                }else {
+                    if ( (child5 = fork()) == 0 ) {//Child5
+                        call_Sorting( (4*tasksPerProcess), 5*tasksPerProcess );
+                        for (i=(4*tasksPerProcess); i<(5*tasksPerProcess); i++) {
+                            fprintf(dataFile, "Year: %d Make: %s\n",
+                                    car_list[i].year,
+                                    car_list[i].make);
+                        }exit(0);
+                        
+                    }else {
+                        if ( (child6 = fork()) == 0 ) {//Child6
+                            call_Sorting( (5*tasksPerProcess), 6*tasksPerProcess );
+                            for (i=(5*tasksPerProcess); i<(6*tasksPerProcess); i++) {
+                                fprintf(dataFile, "Year: %d Make: %s\n",
+                                        car_list[i].year,
+                                        car_list[i].make);
+                            }exit(0);
+                            
+                        }else {
+                            if ( (child7 = fork()) == 0 ) {//Child7
+                                call_Sorting( 6*tasksPerProcess, 7*tasksPerProcess );
+                                for (i=(6*tasksPerProcess); i<(7*tasksPerProcess); i++) {
+                                    fprintf(dataFile, "Year: %d Make: %s\n",
+                                            car_list[i].year,
+                                            car_list[i].make);
+                                }exit(0);
+                                
+                            }else {
+                                if ( (child8 = fork()) == 0 ) {//Child8
+                                    call_Sorting( 7*tasksPerProcess, 8*tasksPerProcess );
+                                    for (i=(7*tasksPerProcess); i<(8*tasksPerProcess); i++) {
+                                        fprintf(dataFile, "Year: %d Make: %s\n",
+                                                car_list[i].year,
+                                                car_list[i].make);
+                                    }exit(0);
+                                    
+                                }else {
+                                    if ( (child9 = fork()) == 0 ) {//Child9
+                                        call_Sorting( 8*tasksPerProcess, 9*tasksPerProcess );
+                                        for (i=(8*tasksPerProcess); i<(9*tasksPerProcess); i++) {
+                                            fprintf(dataFile, "Year: %d Make: %s\n",
+                                                    car_list[i].year,
+                                                    car_list[i].make);
+                                        }exit(0);
+                                        
+                                    }else {
+                                        if ( (child10 = fork()) == 0 ) {//Child10
+                                            call_Sorting( 9*tasksPerProcess, (MAX_COUNT) );
+                                            for (i=(9*tasksPerProcess); i<(MAX_COUNT); i++) {
+                                                fprintf(dataFile, "Year: %d Make: %s\n",
+                                                        car_list[i].year,
+                                                        car_list[i].make);
+                                            }exit(0);
+                                            
+                                        }else {//parent needs to wait for children to finish
+                                            
+                                            wait(&child1);
+                                                wait(&child2);
+                                                    wait(&child3);
+                                                        wait(&child4);
+                                                            wait(&child5);
+                                                                    wait(&child6);
+                                                                wait(&child7);
+                                                            wait(&child8);
+                                                        wait(&child9);
+                                                    wait(&child10);
+                                                fclose(dataFile);
+						printf("done with 10 process....\n");
+                                            read10Processes(); 
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Description:        Selection menu for how many processes to run.
+ * input--
+ * none
+ * output:              void 
+ */
+void processSelec(void){
+   int    numb_Porcess;
+   char * c_time_string;//string to hold time
+   time_t current_time = time(NULL); //get current time stamp     
+   c_time_string = ctime(&current_time);  
+   time_t initialTime;
+   time_t finalTime;
+   
+   
+   
+   printf("/////////////////////////////////////////////////////////////////");
+   programTime( c_time_string, current_time );
+   printf("/////////////////////////////////////////////////////////////////\n\n");
+    
+    
+    //Prompt user for input
+    printf("--------Provide How many processes you would like to run-------\n");
+    printf(" Number of processes to choose from: 1,2,4,10\n");
+    scanf("%d", &numb_Porcess);
+    
+    switch( numb_Porcess ){
+        case 1://run 1 process
+            initialTime = time(NULL);
+            printf("\n");
+            printf("Running 1 Process....\n");
+            oneProcesses();
+            finalTime = time(NULL);
+            printf("----------------------------------------------------\n");
+            printf(">>>>>>> The total  time is %d seconds for one process<<<<<<<<<<\n",
+                   (int)(finalTime - initialTime));
+            break;
+        case 2://run two processes
+            initialTime = time(NULL);
+            printf("\n");
+            printf("Running 2 Processes....\n");
+            twoProcesses();
+            finalTime = time(NULL);
+            printf("----------------------------------------------------\n");
+            printf(">>>>>>> The total  time is %d seconds for two process<<<<<<<<<<\n",
+                  (int)(finalTime - initialTime));
+            break;
+            
+        case 4://run four processes
+            initialTime = time(NULL);
+            printf("\n");
+            printf("Running 4 Processes....\n");	    
+            fourProcesses();
+            finalTime = time(NULL);
+            printf("----------------------------------------------------\n");
+            printf(">>>>>>> The total  time is %d seconds for four process<<<<<<<<<<\n",
+                  (int)(finalTime - initialTime));
+            break;
+            
+        case 10://run ten processes
+            initialTime = time(NULL);
+            printf("\n");
+            printf("Running 10 Processes....\n");
+            tenProcesses();
+            finalTime = time(NULL);
+            printf("----------------------------------------------------\n");
+            printf(">>>>>>> The total  time is %d seconds for four process<<<<<<<<<<\n",
+                  (int)(finalTime - initialTime));
+            break;
+    }
+    printf("\n\n");
+}
+
+
+
