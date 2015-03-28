@@ -2,8 +2,8 @@
 Labs for Operating Systems Spring 2015 at UT Arlington
 
 
-Lab1 Simple Shell
-Lab2 Multi-process
-Lab3 Multi-Thread
-Lab4 Simple File System
-Lab5 A Dropbox utility
+<p>Lab1 Simple Shell</p>
+<p>Lab2 Multi-process</p>
+<p>Lab3 Multi-Thread</p>
+<p>Lab4 Simple File System</p>
+<p>Lab5 A Dropbox utility</p>
