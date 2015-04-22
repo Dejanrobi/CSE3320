@@ -1,0 +1,24 @@
+cmd 1: 10 blocks
+cmd2: name Billy, ABPT 10 FNT 3
+cmd7: Test1.txt   file size under 256  takes 1 abpt
+cmd7: Test3.txt   file size 755 takes 3 abpts
+cmd8: Test1.txt   file saved in  "SavedFile" folder
+cmd9: Name Link Wheee   File linked to Test1.txt
+cmd5: Lists files and links
+
+show that Link Whee is tied to Test1.txt
+
+cmd10: unlink Whee
+cmd3:  save file name as Johnny
+---Restart app--
+cmd4: file name Johnny
+cmd5: 
+cmd12: look at all meta data in system
+cmd8: Test3.txt   file saved in  "SavedFile" folder
+cmd6: filename Test3.txt
+cmd5:
+
+Test extra credit:
+cmd12:  shows data in all file system
+cmd11: change a permission to file Test1.txt to 111 --> not read or write
+cmd10: Test1.txt   try to remove file with wrong permission see error prompt

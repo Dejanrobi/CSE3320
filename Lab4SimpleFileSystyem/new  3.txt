@@ -1,0 +1,43 @@
+public class FileSystem implements Lab4Constants{
+  String systemName;
+  int numBlocks;
+  int numABPT;
+  int numFNT;
+  ArrayList<Integer> FNTMap= new ArrayList<Integer>();
+  ArrayList<Integer> ABPTMap= new ArrayList<Integer>();
+  ArrayList<Integer> dataBlockMap= new ArrayList<Integer>();
+  
+  ArrayList<FileNameTable> files= new ArrayList<FileNameTable>();
+  ArrayList<BlockPointerTable> ptrTable= new ArrayList<BlockPointerTable>();
+  ArrayList<Character[]> datablock= new ArrayList<Character[]>();//Have to add 256 size later
+  ArrayList<Link> link= new ArrayList<Link>();
+  
+  
+  
+  }
+  
+  
+  public class FileNameTable implements Lab4Constants{
+  String fileName; //limit to 56chars
+  int iNode=-1;//points to a ABPT
+  
+  
+  }
+  
+  public class Link implements Lab4Constants{
+  String linkName="";
+  Integer blockPointer; //Points to the actual ABPT that holds the file
+  
+  
+  }
+  
+  
+  public class BlockPointerTable implements Lab4Constants{
+  Integer fileSize=0;
+  String modifiedDateTime="";
+  Integer dataBlockPointer=-1;
+  String permissionCode="777";
+  Integer extenPointer=-1; //points to next index  ABPT Array if required
+  
+  }
+  
