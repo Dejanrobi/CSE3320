@@ -1,0 +1,108 @@
+import java.net.*;
+import java.io.*;
+/********************************
+ * Scott Nidell 
+ * Class:CSE 3320
+ * Assignment: Lab 5 Socket Programming
+ * Due Date: 5/8/2015
+ *******************************/
+
+/********************************************
+ * Project Description: 
+ * Create a "Dropbox/SugarSync/GoogleDrive/MS/Apple..-like system to securely store files "in the cloud" (really on
+ * the server). Users will place unencrupted (plain) files in a special directory, where they will be encrypted and
+ * then sent to a server. Users will be able to selectively, or as a group retrieve (and decrypt) those files later.
+ * You should provide both a client side and server side of you implementation
+ * 
+ * Features to be implemented.
+ * 1.) Put File to server
+ * 2.) Get File from server
+ * 3.) Encrypt file before putting it to server
+ * 4.) Decrypt file after downloaded from server
+ * 
+ * Must first run server then client. Server will wait for client to handshake. All interaction done from client side
+ *
+ ********************************************/
+public class Client {
+ public static void main(String [] args)
+    {
+       String serverName = "localHost";
+       int port = 6066;
+       try
+       {
+          int flag=0;
+          System.out.println("Connecting to " + serverName
+                              + " on port " + port);
+          Socket client = new Socket(serverName, port);
+          System.out.println("Just connected to "
+                       + client.getRemoteSocketAddress());
+          OutputStream outToServer = client.getOutputStream();
+          DataOutputStream out =
+                        new DataOutputStream(outToServer);
+
+          out.writeUTF("Hello from "
+                       + client.getLocalSocketAddress());
+          InputStream inFromServer = client.getInputStream();
+          DataInputStream in =
+                         new DataInputStream(inFromServer);
+          System.out.println("Server says " + in.readUTF());
+          while(flag==0){
+            menu();
+            
+          }
+          client.close();
+       }catch(IOException e)
+       {
+          e.printStackTrace();
+       }
+    }
+ 
+ static void menu(){
+      int select=-1;
+      BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+      while(true){
+      System.out.println("0: Exit");
+      System.out.println("1: Send File to Server--Will Encrypt Before Sending");
+      System.out.println("2: Get File from server--WIll Decrypt after receving");
+      try{
+             select = Integer.parseInt(br.readLine());
+        }catch(NumberFormatException nfe){
+            System.err.println("Invalid Format!");
+        }catch(IOException nfee){
+            System.err.println("Something else went wrong");
+        }
+        switch(select){
+          
+          case 0: System.exit(0);
+          case 1: 
+            String fileNameSending;
+            System.out.println("What File do u want to send?");
+            try{
+             fileNameSending= br.readLine();
+                }catch(NumberFormatException nfe){
+                 System.err.println("Invalid Format!\n");
+                }catch(IOException nfee){
+                 System.err.println("Something else went wrong");
+                }
+            
+            break;
+          case 2:
+            String saveNameFS="";
+            
+          break;
+          
+          case 3:
+          String getFileName="";
+           System.out.println("What is the name you want to save as?");
+            
+            try{
+            getFileName= br.readLine();
+            }catch(IOException nfee){
+                System.err.println("Something else went wrong");
+            }
+            break;
+                                            
+        } 
+      }
+ }
+}

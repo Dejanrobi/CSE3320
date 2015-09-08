@@ -1,0 +1,90 @@
+import java.net.*;
+import java.io.*;
+/********************************
+ * Scott Nidell 
+ * Class:CSE 3320
+ * Assignment: Lab 5 Socket Programming
+ * Due Date: 5/8/2015
+ *******************************/
+
+/********************************************
+ * Project Description: 
+ * Create a "Dropbox/SugarSync/GoogleDrive/MS/Apple..-like system to securely store files "in the cloud" (really on
+ * the server). Users will place unencrupted (plain) files in a special directory, where they will be encrypted and
+ * then sent to a server. Users will be able to selectively, or as a group retrieve (and decrypt) those files later.
+ * You should provide both a client side and server side of you implementation
+ * 
+ * Features to be implemented.
+ * 1.) Put File to server
+ * 2.) Get File from server
+ * 3.) Encrypt file before putting it to server
+ * 4.) Decrypt file after downloaded from server
+ * 
+ * Must first run server then client. Server will wait for client to handshake. All interaction done from client side
+ *
+ ********************************************/
+public class Server extends Thread{
+ private ServerSocket serverSocket;
+    
+    public Server(int port) throws IOException
+    {
+       serverSocket = new ServerSocket(port);
+       serverSocket.setSoTimeout(1000000);
+    }
+
+    public void run()
+    {
+       while(true)
+       {
+          try
+          {
+            int flag=0;
+             System.out.println("Waiting for client on port " +
+             serverSocket.getLocalPort() + "...");
+             Socket server = serverSocket.accept();
+             System.out.println("Just connected to "
+                   + server.getRemoteSocketAddress());
+             DataInputStream in =
+                   new DataInputStream(server.getInputStream());
+             System.out.println(in.readUTF());
+             DataOutputStream out =
+                  new DataOutputStream(server.getOutputStream());
+             out.writeUTF("Thank you for connecting to "
+               + server.getLocalSocketAddress() + "\nGoodbye!");
+             while(flag==0){
+               
+               
+             }
+             server.close();
+          }catch(SocketTimeoutException s)
+            
+          {
+             System.out.println("Socket timed out!");
+             break;
+          }catch(IOException e)
+          {
+             e.printStackTrace();
+             break;
+          }
+       }
+    }
+    
+    
+    
+      
+    
+    public static void main(String [] args)
+    {
+       int port = 6066;
+       try
+       {
+          Thread t = new Server(port);
+          t.start();
+       }catch(IOException e)
+       {
+          e.printStackTrace();
+       }
+    } 
+    
+ }
+
